@@ -95,8 +95,7 @@ function App(){
   const[ld,setLd]=useState(false);
   // API key
   const[apiKey,setApiKey]=useState("AIzaSyDVmTsSiiwQ4IpvVLrsZizlXRIwnVVfevw");
-  const[showSettings,setShowSettings]=useState(false);
-  const[keyInput,setKeyInput]=useState("");
+
 
   const tR=useRef(null);const pR=useRef(null);
   const mrRef=useRef(null);const anRef=useRef(null);const acRef=useRef(null);const stRef=useRef(null);
@@ -109,7 +108,7 @@ function App(){
   useEffect(()=>{if(prep&&prepS>0){pR.current=setInterval(()=>{setPrepS(t=>{if(t<=1){setPrep(false);setRec(true);setTOn(true);setSec(0);return 0;}return t-1;});},1000);}return()=>clearInterval(pR.current);},[prep,prepS]);
   useEffect(()=>()=>{stopMic();window.speechSynthesis?.cancel();},[]);
 
-  const saveKey=(k)=>{setApiKey(k);localStorage.setItem("gemini_key",k);setShowSettings(false);};
+
 
   const startMic=async()=>{
     try{
@@ -153,8 +152,14 @@ function App(){
       const audioParts=[];
       for(const r of recordings){
         const buf=await r.blob.arrayBuffer();
-        const b64=btoa(String.fromCharCode(...new Uint8Array(buf)));
-        const mime=r.mimeType.split(";")[0]; // e.g. audio/webm
+        const bytes=new Uint8Array(buf);
+        // Chunked base64 to avoid stack overflow
+        let b64='';const chunk=8192;
+        for(let i=0;i<bytes.length;i+=chunk){
+          b64+=String.fromCharCode.apply(null,bytes.slice(i,i+chunk));
+        }
+        b64=btoa(b64);
+        const mime=r.mimeType.split(";")[0];
         audioParts.push({inline_data:{mime_type:mime,data:b64}});
       }
 
@@ -183,27 +188,6 @@ Return JSON only, no markdown, no backticks:
     }
     setLd(false);
   };
-
-  // ═══ SETTINGS MODAL ═══
-  const Settings=()=>showSettings?(
-    <div style={{position:"fixed",inset:0,zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setShowSettings(false)}>
-      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)"}}/>
-      <div onClick={e=>e.stopPropagation()} style={{position:"relative",background:"#1a1a24",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:24,width:"100%",maxWidth:400}}>
-        <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>⚙️ API設定</h3>
-        <p style={{fontSize:12,color:"rgba(255,255,255,.4)",lineHeight:1.7,marginBottom:16}}>
-          AI評価を使うにはGemini APIキーが必要です（無料）。<br/>
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style={{color:"#4ECDC4"}}>→ こちらから取得</a>
-        </p>
-        <input value={keyInput} onChange={e=>setKeyInput(e.target.value)} placeholder="APIキーを貼り付け"
-          style={{width:"100%",padding:"12px 14px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.12)",borderRadius:10,color:"#fff",fontSize:14,fontFamily:"'JetBrains Mono',monospace",marginBottom:12,outline:"none"}}/>
-        <div style={{display:"flex",gap:8}}>
-          <button className="btn" onClick={()=>setShowSettings(false)} style={{flex:1,padding:12,background:"rgba(255,255,255,.06)",borderRadius:10,color:"rgba(255,255,255,.5)",fontSize:13}}>キャンセル</button>
-          <button className="btn" onClick={()=>saveKey(keyInput)} style={{flex:1,padding:12,background:"#4ECDC4",borderRadius:10,color:"#0a0a0f",fontSize:13,fontWeight:700}}>保存</button>
-        </div>
-        {apiKey&&<div style={{marginTop:12,fontSize:11,color:"rgba(78,205,196,.6)"}}>✓ キー設定済み: ...{apiKey.slice(-6)}</div>}
-      </div>
-    </div>
-  ):null;
 
   // ═══ HOME ═══
   if(scr==="home") return(
