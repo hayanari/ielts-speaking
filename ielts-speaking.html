@@ -116,7 +116,7 @@ function App(){
       const ctx=new(window.AudioContext||window.webkitAudioContext)();acRef.current=ctx;
       const src=ctx.createMediaStreamSource(stream);const a=ctx.createAnalyser();a.fftSize=256;src.connect(a);anRef.current=a;
       const mimeType=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/mp4';
-      const mr=new MediaRecorder(stream,{mimeType});chunks.current=[];
+      const mr=new MediaRecorder(stream,{mimeType,audioBitsPerSecond:16000});chunks.current=[];
       mr.ondataavailable=(e)=>{if(e.data.size>0)chunks.current.push(e.data);};
       mr.onstop=()=>{const blob=new Blob(chunks.current,{type:mr.mimeType});const url=URL.createObjectURL(blob);const dur=Math.round((Date.now()-recStart.current)/1000);setRecordings(prev=>[...prev,{part,qi,url,duration:dur,blob,mimeType:mr.mimeType}]);chunks.current=[];};
       mr.start(1000);recStart.current=Date.now();mrRef.current=mr;setMicRec(true);setMicErr(null);
@@ -149,11 +149,12 @@ function App(){
     setLd(true);
     try{
       // Merge all recordings into parts
+      // Send max 6 recordings to keep request small
+      const toSend=recordings.length>6?recordings.slice(-6):recordings;
       const audioParts=[];
-      for(const r of recordings){
+      for(const r of toSend){
         const buf=await r.blob.arrayBuffer();
         const bytes=new Uint8Array(buf);
-        // Chunked base64 to avoid stack overflow
         let b64='';const chunk=8192;
         for(let i=0;i<bytes.length;i+=chunk){
           b64+=String.fromCharCode.apply(null,bytes.slice(i,i+chunk));
@@ -165,10 +166,8 @@ function App(){
 
       const body={
         contents:[{parts:[
-          {text:`You are an expert IELTS Speaking examiner. Listen to all the audio recordings from this IELTS Speaking practice test (Parts 1-3). First transcribe what the candidate said, then evaluate their performance.
-
-Return JSON only, no markdown, no backticks:
-{"transcription":"<brief summary of what was said>","overall_band":<1-9 with .5>,"fluency":{"band":<n>,"comment":"<Japanese>"},"lexical":{"band":<n>,"comment":"<Japanese>"},"grammar":{"band":<n>,"comment":"<Japanese>"},"pronunciation":{"band":<n>,"comment":"<Japanese>"},"strengths":["<JP>","<JP>"],"improvements":["<JP>","<JP>","<JP>"],"sample_correction":{"original":"<sentence from candidate>","improved":"<better version>","explanation":"<JP>"}}`},
+          {text:`IELTS Speaking examiner. Listen to the audio and evaluate. Return JSON only, no markdown:
+{"overall_band":<number>,"fluency":{"band":<n>,"comment":"<Japanese 1 sentence>"},"lexical":{"band":<n>,"comment":"<Japanese 1 sentence>"},"grammar":{"band":<n>,"comment":"<Japanese 1 sentence>"},"pronunciation":{"band":<n>,"comment":"<Japanese 1 sentence>"},"strengths":["<JP>","<JP>"],"improvements":["<JP>","<JP>"],"sample_correction":{"original":"<sentence>","improved":"<better>","explanation":"<JP>"}}`},
           ...audioParts
         ]}],
         generationConfig:{temperature:0.3}
