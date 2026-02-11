@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<title>IELTS Speaking Practice</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%}
+body{background:#0a0a0f;color:#fff;font-family:'DM Sans',sans-serif;min-height:100vh;min-height:100dvh;overflow-x:hidden}
+input,textarea,button{font-family:inherit}
+textarea{-webkit-appearance:none}
+::-webkit-scrollbar{width:0;display:none}
+.app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;position:relative}
+.bg{position:fixed;inset:0;pointer-events:none;z-index:0}
+.content{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;max-width:480px;margin:0 auto;width:100%;padding:env(safe-area-inset-top,20px) 20px calc(env(safe-area-inset-bottom,16px) + 16px)}
+.fade-in{opacity:0;transform:translateY(16px);animation:fadeIn .6s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes fadeIn{to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes micPulse{0%,100%{box-shadow:0 0 20px rgba(78,205,196,.3)}50%{box-shadow:0 0 50px rgba(78,205,196,.5)}}
+.mono{font-family:'JetBrains Mono',monospace}
+.serif{font-family:'Playfair Display',serif}
+.btn{border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.btn:active{transform:scale(.97)}
+.timer-bar{display:flex;align-items:center;gap:10px}
+.timer-num{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;letter-spacing:2px;min-width:74px}
+.timer-track{flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+.timer-fill{height:100%;border-radius:3px;transition:width 1s linear}
+.timer-label{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;font-weight:600}
+canvas{display:block;margin:0 auto}
+
+/* Safe area for notch phones */
+@supports(padding:env(safe-area-inset-top)){
+  .content{padding-top:calc(env(safe-area-inset-top) + 16px);padding-bottom:calc(env(safe-area-inset-bottom) + 16px)}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback} = React;
+
+const P1=[
+{topic:"Home & Accommodation",questions:["Do you live in a house or an apartment?","What is your favourite room in your home? Why?","Would you like to move to a different home in the future?","What kind of housing is most popular in your country?"]},
+{topic:"Work & Studies",questions:["Do you work or are you a student?","What do you like most about your work/studies?","Would you like to change your job/field of study in the future?","What skills have you gained from your work/studies?"]},
+{topic:"Hobbies & Free Time",questions:["What do you enjoy doing in your free time?","How did you become interested in this hobby?","Do you think hobbies are important? Why?","Would you like to take up a new hobby in the future?"]},
+{topic:"Travel & Transport",questions:["How do you usually travel to work or school?","Do you prefer public transport or private transport? Why?","What is the most interesting place you have visited?","Would you like to travel more in the future?"]},
+{topic:"Food & Cooking",questions:["What kind of food do you like to eat?","Do you prefer eating at home or eating out?","Have you ever tried cooking a dish from another country?","Is there a food you disliked as a child but enjoy now?"]},
+{topic:"Technology",questions:["How often do you use your phone?","What technology do you use most in your daily life?","Do you think people rely too much on technology?","What new technology would you like to try?"]},
+{topic:"Weather & Seasons",questions:["What is the weather like in your country?","Which season do you like the most? Why?","Does the weather affect your mood?","What do you usually do on rainy days?"]},
+{topic:"Friends & Social Life",questions:["Do you prefer having a few close friends or many friends?","How do you usually keep in touch with your friends?","What qualities do you value most in a friend?","Do you think it is easier to make friends now than in the past?"]},
+];
+
+const P2=[
+{topic:"Describe a person who has influenced you",points:["Who this person is","How you know this person","What this person has done to influence you","And explain why this person has had such an influence on you"]},
+{topic:"Describe a place you would like to visit",points:["Where the place is","How you learned about it","What you would like to do there","And explain why you would like to visit this place"]},
+{topic:"Describe a skill you would like to learn",points:["What the skill is","Why you want to learn it","How you would learn it","And explain how this skill would benefit you"]},
+{topic:"Describe a memorable event in your life",points:["When the event took place","Where it happened","What happened during the event","And explain why it was memorable for you"]},
+{topic:"Describe a book or film that made an impression on you",points:["What the book/film was about","When you read/watched it","Why you chose it","And explain what impression it made on you"]},
+{topic:"Describe a time when you helped someone",points:["Who you helped","What you helped them with","How you felt about helping them","And explain why you decided to help this person"]},
+];
+
+const P3={
+"Describe a person who has influenced you":["Do you think famous people have more influence on young people than parents?","What qualities make a good role model?","How has the concept of influence changed with social media?","Should schools teach students about influential historical figures?"],
+"Describe a place you would like to visit":["Why do people enjoy travelling to unfamiliar places?","How has tourism changed in recent years?","Do you think travelling helps people become more open-minded?","What impact does mass tourism have on local communities?"],
+"Describe a skill you would like to learn":["What skills do you think will be most important in the future?","Is it better to have many skills or to specialise in one?","How has technology changed the way people learn new skills?","Do you think schools prepare students with the right skills for work?"],
+"Describe a memorable event in your life":["Why do people tend to remember certain events more than others?","Do you think shared experiences bring people closer together?","How has the way people record memories changed over time?","Are celebrations and events more important now than in the past?"],
+"Describe a book or film that made an impression on you":["Do you think reading books is more beneficial than watching films?","How do books and films shape people's understanding of the world?","Why are some stories popular across different cultures?","Do you think AI-generated content will replace human creativity?"],
+"Describe a time when you helped someone":["Do you think people are less willing to help others than in the past?","Should governments do more to encourage volunteering?","Is it better to help people financially or through personal effort?","How can communities encourage a culture of helping each other?"],
+};
+
+const BC={fluency:"Fluency & Coherence",lexical:"Lexical Resource",grammar:"Grammatical Range & Accuracy",pronunciation:"Pronunciation"};
+const CC={fluency:"#4ECDC4",lexical:"#FF6B6B",grammar:"#FFE66D",pronunciation:"#A78BFA"};
+
+const SRec=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+function tts(text,onEnd){
+  if(!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="en-US";u.rate=0.9;u.pitch=1;
+  const v=window.speechSynthesis.getVoices();
+  const p=v.find(x=>x.lang.startsWith("en")&&/Google|Samantha|Daniel|Karen|Natural/.test(x.name));
+  if(p)u.voice=p;else{const e=v.find(x=>x.lang.startsWith("en"));if(e)u.voice=e;}
+  if(onEnd)u.onend=onEnd;
+  window.speechSynthesis.speak(u);
+}
+
+function Timer({sec,max,label,color}){
+  const m=Math.floor(sec/60),s=sec%60;
+  return(
+    <div className="timer-bar">
+      <span className="timer-num" style={{color}}>{String(m).padStart(2,"0")}:{String(s).padStart(2,"0")}</span>
+      <div className="timer-track"><div className="timer-fill" style={{width:`${(sec/max)*100}%`,background:color}}/></div>
+      <span className="timer-label">{label}</span>
+    </div>
+  );
+}
+
+function Waveform({aRef,active,color}){
+  const cRef=useRef(null);const rRef=useRef(null);
+  useEffect(()=>{
+    const c=cRef.current;if(!c)return;
+    const ctx=c.getContext("2d"),W=c.width,H=c.height,bars=28,bw=W/bars-2;
+    const draw=()=>{
+      ctx.clearRect(0,0,W,H);
+      const a=aRef?.current;
+      if(a&&active){
+        const d=new Uint8Array(a.frequencyBinCount);a.getByteFrequencyData(d);
+        const step=Math.floor(d.length/bars);
+        for(let i=0;i<bars;i++){const v=d[i*step]/255,h=Math.max(3,v*H);ctx.fillStyle=color;ctx.globalAlpha=.5+v*.5;ctx.beginPath();ctx.roundRect(i*(bw+2),H/2-h/2,bw,h,2);ctx.fill();}
+      }else{for(let i=0;i<bars;i++){ctx.fillStyle="rgba(255,255,255,.08)";ctx.beginPath();ctx.roundRect(i*(bw+2),H/2-1.5,bw,3,2);ctx.fill();}}
+      rRef.current=requestAnimationFrame(draw);
+    };
+    draw();return()=>cancelAnimationFrame(rRef.current);
+  },[active,color]);
+  return <canvas ref={cRef} width={280} height={44} style={{width:"100%",maxWidth:280,height:44}}/>;
+}
+
+function App(){
+  const[scr,setScr]=useState("home");
+  const[part,setPart]=useState(0);
+  const[qi,setQi]=useState(0);
+  const[ans,setAns]=useState("");
+  const[sec,setSec]=useState(0);
+  const[tOn,setTOn]=useState(false);
+  const[s1,setS1]=useState(null);
+  const[s2,setS2]=useState(null);
+  const[prepS,setPrepS]=useState(60);
+  const[prep,setPrep]=useState(false);
+  const[rec,setRec]=useState(false);
+  const[fb,setFb]=useState(null);
+  const[ld,setLd]=useState(false);
+  const[all,setAll]=useState([]);
+  const[tips,setTips]=useState(false);
+  const[mode,setMode]=useState("voice");
+  const[lis,setLis]=useState(false);
+  const[spk,setSpk]=useState(false);
+  const[vOk,setVOk]=useState(false);
+  const[mErr,setMErr]=useState(null);
+  const[intm,setIntm]=useState("");
+  const[ar,setAr]=useState(true);
+  const[aKey,setAKey]=useState(0);
+
+  const tR=useRef(null);const pR=useRef(null);const rR=useRef(null);
+  const anRef=useRef(null);const acR=useRef(null);const stR=useRef(null);
+
+  useEffect(()=>{setVOk(!!SRec);if(window.speechSynthesis){window.speechSynthesis.getVoices();window.speechSynthesis.onvoiceschanged=()=>window.speechSynthesis.getVoices();}},[]);
+  useEffect(()=>{setAKey(k=>k+1);},[scr,part,qi]);
+  useEffect(()=>{if(scr==="test"&&!s1){setS1(P1[Math.floor(Math.random()*P1.length)]);setS2(P2[Math.floor(Math.random()*P2.length)]);}},[scr]);
+  useEffect(()=>{if(tOn)tR.current=setInterval(()=>setSec(t=>t+1),1000);return()=>clearInterval(tR.current);},[tOn]);
+  useEffect(()=>{
+    if(prep&&prepS>0){pR.current=setInterval(()=>{setPrepS(t=>{if(t<=1){setPrep(false);setRec(true);setTOn(true);setSec(0);return 0;}return t-1;});},1000);}
+    return()=>clearInterval(pR.current);
+  },[prep,prepS]);
+  useEffect(()=>()=>{stp();window.speechSynthesis?.cancel();},[]);
+
+  const setupA=async()=>{try{const s=await navigator.mediaDevices.getUserMedia({audio:true});stR.current=s;const c=new(window.AudioContext||window.webkitAudioContext)();acR.current=c;const src=c.createMediaStreamSource(s);const a=c.createAnalyser();a.fftSize=256;src.connect(a);anRef.current=a;}catch(e){}};
+
+  const stt=useCallback(()=>{
+    if(!SRec){setMErr("お使いのブラウザは音声認識に対応していません。Chromeをお使いください。");return;}
+    setMErr(null);
+    const r=new SRec();r.lang="en-US";r.interimResults=true;r.continuous=true;
+    r.onresult=(e)=>{let i="",f="";for(let j=e.resultIndex;j<e.results.length;j++){const t=e.results[j][0].transcript;if(e.results[j].isFinal)f+=t+" ";else i+=t;}if(f){setAns(p=>p+f);setIntm("");}else setIntm(i);};
+    r.onerror=(e)=>{if(e.error==="not-allowed")setMErr("マイクのアクセスが拒否されました。ブラウザの設定を確認してください。");else if(e.error!=="no-speech"&&e.error!=="aborted")setMErr(`音声認識エラー: ${e.error}`);};
+    r.onend=()=>{if(rR.current===r)try{r.start();}catch(e){}};
+    try{r.start();rR.current=r;setLis(true);}catch(e){setMErr("音声認識を開始できませんでした。");}
+    setupA();
+  },[]);
+
+  const stp=useCallback(()=>{
+    if(rR.current){const ref=rR.current;rR.current=null;try{ref.stop();}catch(e){}}
+    setLis(false);setIntm("");
+    if(stR.current){stR.current.getTracks().forEach(t=>t.stop());stR.current=null;}
+    if(acR.current){acR.current.close().catch(()=>{});acR.current=null;}
+    anRef.current=null;
+  },[]);
+
+  const readQ=(t)=>{setSpk(true);tts(t,()=>setSpk(false));};
+  const getQs=()=>{if(part===1&&s1)return s1.questions;if(part===3&&s2)return P3[s2.topic]||[];return[];};
+  const pc=part===1?"#4ECDC4":part===2?"#FF6B6B":"#FFE66D";
+  const maxT=part===2?120:300;
+
+  const start=()=>{setScr("test");setPart(1);setQi(0);setAll([]);setAns("");setSec(0);setTOn(false);setRec(false);setFb(null);setS1(null);setS2(null);setIntm("");setMErr(null);};
+
+  const save=()=>{
+    const t=(ans+" "+intm).trim();
+    if(t){const q=part===2?s2.topic:getQs()[qi];setAll(a=>[...a,{part,question:q,answer:t}]);}
+    setAns("");setIntm("");setRec(false);setTOn(false);stp();window.speechSynthesis?.cancel();setSpk(false);
+  };
+
+  const nxt=()=>{save();const qs=getQs();if(qi<qs.length-1){setQi(i=>i+1);setSec(0);}else{if(part===1){setPart(2);setQi(0);setSec(0);setPrep(true);setPrepS(60);}else if(part===2){setPart(3);setQi(0);setSec(0);}else fin();}};
+  const skp=()=>{save();if(part===1){setPart(2);setQi(0);setSec(0);setPrep(true);setPrepS(60);}else if(part===2){setPart(3);setQi(0);setSec(0);}else fin();};
+  const stRec=()=>{setRec(true);setTOn(true);setSec(0);if(mode==="voice")stt();if(ar){const qs=getQs();const q=part===2?s2?.topic:qs[qi];if(q)readQ(part===2?`Please talk about: ${q}`:q);}};
+  const skPrep=()=>{clearInterval(pR.current);setPrep(false);setRec(true);setTOn(true);setSec(0);setPrepS(0);if(mode==="voice")stt();};
+
+  const fin=async()=>{
+    save();setLd(true);setScr("feedback");
+    const fa=[...all];const pd=(ans+" "+intm).trim();
+    if(pd){const q=part===2?s2.topic:getQs()[qi];fa.push({part,question:q,answer:pd});}
+    try{
+      const t=fa.map(a=>`[Part ${a.part}] Q: ${a.question}\nA: ${a.answer}`).join("\n\n");
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`You are an expert IELTS Speaking examiner. Evaluate spoken responses (transcribed via speech recognition — ignore minor artifacts). Return JSON only, no markdown:\n{"overall_band":<1-9 with .5>,"fluency":{"band":<n>,"comment":"<Japanese>"},"lexical":{"band":<n>,"comment":"<Japanese>"},"grammar":{"band":<n>,"comment":"<Japanese>"},"pronunciation":{"band":<n>,"comment":"<Japanese>"},"strengths":["<JP>","<JP>"],"improvements":["<JP>","<JP>","<JP>"],"sample_correction":{"original":"<sentence>","improved":"<better>","explanation":"<JP>"}}\n\nResponses:\n${t}`}]})
+      });
+      const d=await res.json();const tx=d.content.map(i=>i.text||"").join("").replace(/```json|```/g,"").trim();
+      setFb(JSON.parse(tx));
+    }catch(e){
+      setFb({overall_band:"—",fluency:{band:"—",comment:"評価を生成できませんでした。"},lexical:{band:"—",comment:"もう一度お試しください。"},grammar:{band:"—",comment:""},pronunciation:{band:"—",comment:""},strengths:["回答を記録しました"],improvements:["もう一度テストを受けてみてください"],sample_correction:null});
+    }
+    setLd(false);
+  };
+
+  // ═══ HOME ═══
+  if(scr==="home") return(
+    <div className="app">
+      <div className="bg" style={{background:"radial-gradient(ellipse at 20% 50%,rgba(78,205,196,.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(255,107,107,.06) 0%,transparent 50%),radial-gradient(ellipse at 50% 80%,rgba(255,230,109,.04) 0%,transparent 50%)"}}/>
+      <div className="content fade-in" key={aKey} style={{alignItems:"center",justifyContent:"center"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+          <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#4ECDC4,#FF6B6B,#FFE66D)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🎤</div>
+          <span style={{fontSize:12,fontWeight:700,letterSpacing:3.5,textTransform:"uppercase",color:"rgba(255,255,255,.35)"}}>IELTS SPEAKING</span>
+        </div>
+        <h1 className="serif" style={{fontSize:46,fontWeight:900,textAlign:"center",lineHeight:1.1,marginBottom:14,background:"linear-gradient(135deg,#fff 30%,rgba(255,255,255,.6))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Speaking<br/>Practice</h1>
+        <p style={{fontSize:14,color:"rgba(255,255,255,.45)",textAlign:"center",lineHeight:1.7,maxWidth:360,marginBottom:18}}>
+          本番さながらの環境で Part 1〜3 を通し練習。<br/>AI がバンドスコアとフィードバックを即座に算出します。
+        </p>
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 16px",background:vOk?"rgba(78,205,196,.08)":"rgba(255,107,107,.08)",border:`1px solid ${vOk?"rgba(78,205,196,.2)":"rgba(255,107,107,.2)"}`,borderRadius:10,marginBottom:28}}>
+          <div style={{width:7,height:7,borderRadius:"50%",background:vOk?"#4ECDC4":"#FF6B6B"}}/>
+          <span style={{fontSize:11,color:"rgba(255,255,255,.5)"}}>{vOk?"🎙️ 音声入力対応":"⌨️ タイピングのみ（Chrome推奨）"}</span>
+        </div>
+
+        <div style={{display:"flex",flexDirection:"column",gap:10,width:"100%",marginBottom:36}}>
+          {[{n:1,t:"Introduction & Interview",tm:"4–5 min",c:"#4ECDC4",d:"身近なトピックについての質問"},{n:2,t:"Individual Long Turn",tm:"3–4 min",c:"#FF6B6B",d:"カードのトピックで1–2分スピーチ"},{n:3,t:"Two-way Discussion",tm:"4–5 min",c:"#FFE66D",d:"Part 2に関連した抽象的な議論"}].map(x=>(
+            <div key={x.n} style={{display:"flex",alignItems:"center",gap:14,padding:"16px 18px",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:14}}>
+              <div className="mono" style={{width:38,height:38,borderRadius:10,background:`${x.c}15`,border:`1px solid ${x.c}30`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:15,color:x.c,flexShrink:0}}>{x.n}</div>
+              <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:14,marginBottom:2}}>{x.t}</div><div style={{fontSize:11,color:"rgba(255,255,255,.35)"}}>{x.d}</div></div>
+              <span className="mono" style={{fontSize:11,color:"rgba(255,255,255,.3)",flexShrink:0}}>{x.tm}</span>
+            </div>
+          ))}
+        </div>
+
+        <button className="btn" onClick={start} style={{width:"100%",maxWidth:300,padding:"16px 28px",borderRadius:14,background:"linear-gradient(135deg,#4ECDC4,#44B8B0)",color:"#0a0a0f",fontSize:15,fontWeight:700,letterSpacing:.5,boxShadow:"0 8px 32px rgba(78,205,196,.3)"}}>テストを開始する →</button>
+        <button className="btn" onClick={()=>setTips(!tips)} style={{marginTop:16,background:"none",border:"none",color:"rgba(255,255,255,.35)",fontSize:12,textDecoration:"underline",textDecorationColor:"rgba(255,255,255,.15)",textUnderlineOffset:4}}>
+          {tips?"ヒントを閉じる":"💡 高得点のコツ"}
+        </button>
+        {tips&&<div style={{marginTop:14,padding:"18px 20px",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.08)",borderRadius:14,fontSize:12,lineHeight:2,color:"rgba(255,255,255,.55)"}}>
+          <div style={{fontWeight:600,color:"#4ECDC4",marginBottom:6,fontSize:13}}>スコアアップのコツ</div>
+          ✦ フルセンテンスで答える<br/>✦ 理由や具体例を必ず添える<br/>✦ 多様な語彙と文法構造を使う<br/>✦ Part 2 は 2 分間話し切る<br/>✦ Part 3 は賛否両面から議論<br/>✦ 言い直しや言い換えもOK
+        </div>}
+      </div>
+    </div>
+  );
+
+  // ═══ TEST ═══
+  if(scr==="test"){
+    const qs=getQs();
+    return(
+      <div className="app">
+        <div className="bg" style={{background:`radial-gradient(ellipse at 30% 20%,${pc}08 0%,transparent 60%)`}}/>
+        <div className="content" key={aKey}>
+          {/* Header */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <div className="mono" style={{padding:"5px 12px",background:`${pc}15`,border:`1px solid ${pc}40`,borderRadius:8,fontSize:12,fontWeight:700,color:pc}}>PART {part}</div>
+              {part!==2&&<span style={{fontSize:12,color:"rgba(255,255,255,.3)"}}>Q{qi+1}/{qs.length}</span>}
+            </div>
+            <button className="btn" onClick={skp} style={{padding:"7px 14px",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:8,color:"rgba(255,255,255,.5)",fontSize:11,fontWeight:500}}>
+              {part===3?"テスト終了":`Part ${part+1} へ →`}
+            </button>
+          </div>
+
+          {/* Mode + Read */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,gap:8}}>
+            <div style={{display:"flex",gap:4,padding:3,background:"rgba(255,255,255,.04)",borderRadius:9,border:"1px solid rgba(255,255,255,.08)"}}>
+              {[["voice","🎤 音声"],["type","⌨️ タイプ"]].map(([m,l])=>(
+                <button key={m} className="btn" onClick={()=>{setMode(m);if(m==="voice"&&rec&&!lis)stt();if(m==="type"&&lis)stp();}}
+                  style={{padding:"5px 12px",borderRadius:7,background:mode===m?"rgba(255,255,255,.1)":"transparent",color:mode===m?"#fff":"rgba(255,255,255,.35)",fontSize:11,fontWeight:600}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <button className="btn" onClick={()=>setAr(!ar)} style={{padding:"5px 10px",borderRadius:7,background:ar?"rgba(78,205,196,.12)":"rgba(255,255,255,.04)",color:ar?"#4ECDC4":"rgba(255,255,255,.3)",fontSize:10,fontWeight:600,display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>
+              🔊 読上げ{ar?"ON":"OFF"}
+            </button>
+          </div>
+
+          {/* Progress */}
+          <div style={{display:"flex",gap:3,marginBottom:22}}>
+            {[1,2,3].map(x=><div key={x} style={{flex:1,height:3,borderRadius:2,background:x<part?pc:x===part?`${pc}80`:"rgba(255,255,255,.08)"}}/>)}
+          </div>
+
+          <div className="fade-in">
+          {part===2&&prep?(
+            <div>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:2.5,textTransform:"uppercase",color:pc,marginBottom:14}}>📝 PREPARATION TIME</div>
+              <div style={{padding:22,background:"rgba(255,255,255,.03)",border:`1px solid ${pc}20`,borderRadius:14,marginBottom:20}}>
+                <h2 className="serif" style={{fontSize:18,fontWeight:700,marginBottom:16,lineHeight:1.4}}>{s2.topic}</h2>
+                <div style={{fontSize:12,color:"rgba(255,255,255,.4)",marginBottom:10}}>You should say:</div>
+                {s2.points.map((pt,i)=><div key={i} style={{padding:"6px 0",fontSize:13,color:"rgba(255,255,255,.7)",display:"flex",gap:8}}><span style={{color:pc}}>•</span>{pt}</div>)}
+              </div>
+              <button className="btn" onClick={()=>readQ(`${s2.topic}. You should say: ${s2.points.join(". ")}.`)} style={{width:"100%",padding:11,marginBottom:14,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,color:"rgba(255,255,255,.5)",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                {spk?"🔊 読み上げ中...":"🔊 カードを読み上げる"}
+              </button>
+              <Timer sec={prepS} max={60} label="PREP" color={pc}/>
+              <button className="btn" onClick={skPrep} style={{marginTop:16,width:"100%",padding:13,background:`${pc}15`,border:`1px solid ${pc}30`,borderRadius:12,color:pc,fontSize:13,fontWeight:600}}>準備完了 — 話し始める</button>
+            </div>
+          ):(
+            <div>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:2.5,textTransform:"uppercase",color:pc,marginBottom:14}}>
+                {part===1?s1?.topic:part===2?"YOUR TALK":"DISCUSSION"}
+              </div>
+              {part===2?(
+                <div style={{padding:"18px 20px",background:"rgba(255,255,255,.03)",border:`1px solid ${pc}15`,borderRadius:14,marginBottom:20}}>
+                  <h2 className="serif" style={{fontSize:18,fontWeight:700,lineHeight:1.4,marginBottom:8}}>{s2.topic}</h2>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,.35)"}}>1〜2分間で話してください</div>
+                </div>
+              ):(
+                <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:20}}>
+                  <h2 className="serif" style={{fontSize:20,fontWeight:700,lineHeight:1.5,flex:1}}>{qs[qi]}</h2>
+                  <button className="btn" onClick={()=>readQ(qs[qi])} style={{width:38,height:38,borderRadius:10,flexShrink:0,background:spk?`${pc}20`:"rgba(255,255,255,.06)",color:spk?pc:"rgba(255,255,255,.4)",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>🔊</button>
+                </div>
+              )}
+
+              {spk&&<div style={{display:"flex",alignItems:"center",gap:7,padding:"9px 14px",background:"rgba(78,205,196,.06)",border:"1px solid rgba(78,205,196,.15)",borderRadius:10,marginBottom:14,fontSize:12,color:"#4ECDC4"}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:"#4ECDC4",animation:"pulse 1.5s ease-in-out infinite"}}/>Examiner is speaking...
+              </div>}
+
+              {rec&&<div style={{marginBottom:16}}><Timer sec={sec} max={maxT} label={part===2?"SPEAKING":"RESPONSE"} color={pc}/></div>}
+
+              {rec?(
+                <div>
+                  {mode==="voice"?(
+                    <div>
+                      {mErr&&<div style={{padding:"10px 14px",background:"rgba(255,107,107,.08)",border:"1px solid rgba(255,107,107,.2)",borderRadius:10,fontSize:12,color:"#FF6B6B",marginBottom:14}}>
+                        ⚠️ {mErr}
+                        <button className="btn" onClick={()=>{setMode("type");setMErr(null);}} style={{marginLeft:10,background:"none",border:"none",color:"#FF6B6B",textDecoration:"underline",fontSize:11}}>タイピングに切替</button>
+                      </div>}
+                      <div style={{display:"flex",justifyContent:"center",marginBottom:14}}>
+                        <Waveform aRef={anRef} active={lis} color={pc}/>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
+                        <button className="btn" onClick={()=>lis?stp():stt()} style={{width:66,height:66,borderRadius:"50%",background:lis?`radial-gradient(circle,${pc} 0%,${pc}80 100%)`:"rgba(255,255,255,.06)",color:lis?"#0a0a0f":"rgba(255,255,255,.5)",fontSize:26,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:lis?`0 0 36px ${pc}40`:"none",animation:lis?"micPulse 2s ease-in-out infinite":"none"}}>
+                          {lis?"🎤":"🎙️"}
+                        </button>
+                      </div>
+                      <div style={{textAlign:"center",fontSize:11,color:"rgba(255,255,255,.3)",marginBottom:14}}>
+                        {lis?"🎙️ 聞き取り中… 英語で話してください":"タップしてマイクを再開"}
+                      </div>
+                      <div style={{minHeight:80,padding:"16px 18px",background:"rgba(255,255,255,.03)",border:`1px solid ${pc}15`,borderRadius:14,fontSize:14,lineHeight:1.8,color:"rgba(255,255,255,.8)"}}>
+                        {ans||intm?<>{ans}{intm&&<span style={{color:`${pc}80`,fontStyle:"italic"}}>{intm}</span>}</>:<span style={{color:"rgba(255,255,255,.2)"}}>あなたの回答がここに表示されます...</span>}
+                      </div>
+                    </div>
+                  ):(
+                    <div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,.3)",marginBottom:6,letterSpacing:1}}>⌨️ TYPE YOUR RESPONSE IN ENGLISH</div>
+                      <textarea value={ans} onChange={e=>setAns(e.target.value)} placeholder="Type what you would say out loud..."
+                        style={{width:"100%",minHeight:140,padding:"16px 18px",background:"rgba(255,255,255,.04)",border:`1px solid ${pc}25`,borderRadius:14,color:"#fff",fontSize:14,lineHeight:1.8,fontFamily:"'DM Sans',sans-serif",resize:"vertical",outline:"none"}} autoFocus/>
+                    </div>
+                  )}
+                  <div style={{marginTop:14}}>
+                    <button className="btn" onClick={nxt} style={{width:"100%",padding:"14px 18px",background:pc,borderRadius:12,color:"#0a0a0f",fontSize:14,fontWeight:700}}>
+                      {part===3&&qi===qs.length-1?"テスト完了 ✓":part!==2&&qi<qs.length-1?"次の質問 →":part===2?"Part 3 へ →":`Part ${part+1} へ →`}
+                    </button>
+                  </div>
+                </div>
+              ):(
+                <button className="btn" onClick={stRec} style={{width:"100%",padding:16,background:`${pc}15`,border:`2px dashed ${pc}30`,borderRadius:14,color:pc,fontSize:14,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span style={{fontSize:18}}>{mode==="voice"?"🎤":"✏️"}</span>
+                  {mode==="voice"?"タップして音声で回答":"タップして回答を開始"}
+                </button>
+              )}
+            </div>
+          )}
+          </div>
+
+          <div style={{marginTop:"auto",paddingTop:24,textAlign:"center",fontSize:11,color:"rgba(255,255,255,.2)"}}>
+            {part===1&&"Part 1: 2〜3文で短く答えましょう"}
+            {part===2&&(prep?"メモを取って話す内容を整理しましょう":"1〜2分間、長く話し続けましょう")}
+            {part===3&&"Part 3: 意見＋理由＋例で議論しましょう"}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══ FEEDBACK ═══
+  if(scr==="feedback") return(
+    <div className="app">
+      <div className="bg" style={{background:"radial-gradient(ellipse at 50% 30%,rgba(78,205,196,.06) 0%,transparent 60%)"}}/>
+      <div className="content fade-in" key={aKey}>
+        {ld?(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flex:1,gap:20}}>
+            <div style={{width:44,height:44,border:"3px solid rgba(255,255,255,.08)",borderTopColor:"#4ECDC4",borderRadius:"50%",animation:"spin 1s linear infinite"}}/>
+            <div style={{color:"rgba(255,255,255,.4)",fontSize:13}}>AI がフィードバックを生成中...</div>
+          </div>
+        ):fb&&(<>
+          <div style={{textAlign:"center",marginBottom:32}}>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:3.5,textTransform:"uppercase",color:"rgba(255,255,255,.3)",marginBottom:14}}>YOUR RESULT</div>
+            <div style={{width:110,height:110,borderRadius:"50%",border:"3px solid #4ECDC4",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",boxShadow:"0 0 50px rgba(78,205,196,.15)"}}>
+              <span className="mono" style={{fontSize:40,fontWeight:700,color:"#4ECDC4"}}>{fb.overall_band}</span>
+              <span style={{fontSize:9,color:"rgba(255,255,255,.3)",letterSpacing:2}}>BAND</span>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:22}}>
+            {Object.entries(BC).map(([k,l])=>{const s=fb[k];if(!s)return null;return(
+              <div key={k} style={{padding:"16px 14px",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <span style={{fontSize:10,fontWeight:600,color:"rgba(255,255,255,.5)"}}>{l}</span>
+                  <span className="mono" style={{fontSize:18,fontWeight:700,color:CC[k]}}>{s.band}</span>
+                </div>
+                <div style={{height:3,background:"rgba(255,255,255,.06)",borderRadius:2,marginBottom:8}}>
+                  <div style={{width:`${(Number(s.band)/9)*100}%`,height:"100%",background:CC[k],borderRadius:2}}/>
+                </div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.4)",lineHeight:1.6}}>{s.comment}</div>
+              </div>
+            );})}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:22}}>
+            <div style={{padding:"16px 14px",background:"rgba(78,205,196,.04)",border:"1px solid rgba(78,205,196,.12)",borderRadius:12}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#4ECDC4",marginBottom:10}}>✦ 強み</div>
+              {fb.strengths?.map((s,i)=><div key={i} style={{fontSize:12,color:"rgba(255,255,255,.55)",lineHeight:1.6,marginBottom:5}}>{s}</div>)}
+            </div>
+            <div style={{padding:"16px 14px",background:"rgba(255,107,107,.04)",border:"1px solid rgba(255,107,107,.12)",borderRadius:12}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#FF6B6B",marginBottom:10}}>△ 改善点</div>
+              {fb.improvements?.map((s,i)=><div key={i} style={{fontSize:12,color:"rgba(255,255,255,.55)",lineHeight:1.6,marginBottom:5}}>{s}</div>)}
+            </div>
+          </div>
+          {fb.sample_correction&&<div style={{padding:"18px 16px",background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:12,marginBottom:26}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#FFE66D",marginBottom:12}}>📝 添削例</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginBottom:4}}>あなたの回答:</div>
+            <div style={{fontSize:13,color:"rgba(255,107,107,.7)",lineHeight:1.7,marginBottom:10,textDecoration:"line-through",textDecorationColor:"rgba(255,107,107,.3)"}}>{fb.sample_correction.original}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginBottom:4}}>改善例:</div>
+            <div style={{fontSize:13,color:"#4ECDC4",lineHeight:1.7,marginBottom:10}}>{fb.sample_correction.improved}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.4)",lineHeight:1.6,paddingTop:8,borderTop:"1px solid rgba(255,255,255,.06)"}}>💡 {fb.sample_correction.explanation}</div>
+          </div>}
+          <button className="btn" onClick={()=>{setScr("home");setPart(0);setFb(null);setAll([]);}} style={{width:"100%",padding:16,borderRadius:14,background:"linear-gradient(135deg,#4ECDC4,#44B8B0)",color:"#0a0a0f",fontSize:14,fontWeight:700,boxShadow:"0 8px 32px rgba(78,205,196,.25)"}}>もう一度練習する ↻</button>
+        </>)}
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
