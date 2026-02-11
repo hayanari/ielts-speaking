@@ -174,14 +174,22 @@ Return JSON only, no markdown, no backticks:
         generationConfig:{temperature:0.3}
       };
 
-      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,{
-        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
-      });
-      const d=await res.json();
-      if(d.error){throw new Error(d.error.message);}
-      const txt=d.candidates?.[0]?.content?.parts?.[0]?.text||"";
-      const clean=txt.replace(/```json|```/g,"").trim();
-      setFb(JSON.parse(clean));
+      const models=["gemini-2.5-flash","gemini-2.0-flash-lite","gemini-1.5-flash"];
+      let result=null;
+      for(const model of models){
+        try{
+          const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,{
+            method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
+          });
+          const d=await res.json();
+          if(d.error){if(d.error.code===429||d.error.message?.includes("quota")){continue;}throw new Error(d.error.message);}
+          const txt=d.candidates?.[0]?.content?.parts?.[0]?.text||"";
+          result=JSON.parse(txt.replace(/```json|```/g,"").trim());
+          break;
+        }catch(e){if(e.message?.includes("quota"))continue;throw e;}
+      }
+      if(!result)throw new Error("全てのモデルの無料枠を使い切りました。しばらく待ってから再試行してください。");
+      setFb(result);
     }catch(e){
       console.error(e);
       alert("AI評価エラー: "+e.message);
